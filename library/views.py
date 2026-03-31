@@ -14,6 +14,12 @@ class BookViewSet(viewsets.ModelViewSet):
     queryset = Book.objects.all()
     serializer_class = BookSerializer
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.action == "list":
+            return qs.select_related("author")
+        return qs
+
     @action(detail=True, methods=['post'])
     def loan(self, request, pk=None):
         book = self.get_object()
@@ -48,6 +54,37 @@ class BookViewSet(viewsets.ModelViewSet):
 class MemberViewSet(viewsets.ModelViewSet):
     queryset = Member.objects.all()
     serializer_class = MemberSerializer
+
+    @action(detail=False, methods=['get'],)
+    def top_active(self, request):
+        """Top 5 Active Members Endpoint
+
+            Develop an API to list the top 5 members with the most active loans.
+            📍 Requirements:
+            Add a New Endpoint:
+            Endpoint: GET /api/members/top-active/
+            Functionality:
+            Retrieve the top 5 members who currently have the most active loans (is_returned=False).
+            Return member details along with the count of their active loans.
+            Ensure Efficient Querying:
+            Use Django ORM's aggregation features (annotate, Count) to calculate the number of active loans per member.
+            Response Format:
+            The response should include:
+            Member ID
+            Username
+            Email
+            Number of Active Loans
+        """
+        qs = self.get_queryset()
+        from django.db.models import Count, F, OuterRef
+
+        qs.annotate(
+            active_loans = Loan.objects.filter(
+                member=OuterRef("id"),
+                is_returned=False
+            )
+        ).filter(active_loans__gte=5)
+        return Response({'status': 'Book returned successfully.'}, status=status.HTTP_200_OK)
 
 class LoanViewSet(viewsets.ModelViewSet):
     queryset = Loan.objects.all()
